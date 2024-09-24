@@ -1,0 +1,32 @@
+---
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: schedule-jobs
+  labels:
+    app.kubernetes.io/version: "0.8.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.12.1"
+    tekton.dev/tags: release
+spec:
+  description: >-
+    Tekton task to schedule a job of release automation.
+  params:
+  - name: jiratoken
+    type: string
+    description: Token to login to Jira
+  - name: gitlabtoken
+    type: string
+    description: Token to login to gitlab.cee.redhat.com
+  steps:
+    - name: schedule-jobs
+      image: registry.fedoraproject.org/fedora:latest
+      script: |
+        #!/usr/bin/env bash
+        set -eux
+        curl -sS https://certs.corp.redhat.com/certs/Current-IT-Root-CAs.pem >/etc/pki/ca-trust/source/anchors/Current-IT-Root-CAs.pem
+        update-ca-trust
+        export REQUESTS_CA_BUNDLE=/etc/pki/tls/certs/ca-bundle.crt
+        dnf install -y python3-pip python3-devel openldap-devel gcc krb5-server krb5-devel
+        pip3 install $"(cat requirements.txt)"
+        python3 release_monitor_engine.py --jira-token "$(params.jiratoken)" --gitlab-token "$(params.gitlabtoken)"  --team cmp
